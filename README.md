@@ -56,3 +56,22 @@ Next Steps:
 
 ------------------------------------------------------------
 
+import pandas as pd
+
+def get_users_with_managers(graph_token):
+    url = "https://graph.microsoft.com/v1.0/users?$select=id,displayName,userPrincipalName,jobTitle,department,manager"
+    headers = {"Authorization": f"Bearer {graph_token}"}
+    users = []
+
+    next_url = url
+    while next_url:
+        response = requests.get(next_url, headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        users.extend(data.get("value", []))
+        next_url = data.get("@odata.nextLink")
+
+    return pd.DataFrame(users)
+
+users_df = get_users_with_managers(graph_token)
+users_df.head()
