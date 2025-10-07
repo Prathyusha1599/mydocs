@@ -75,3 +75,39 @@ def get_users_with_managers(graph_token):
 
 users_df = get_users_with_managers(graph_token)
 users_df.head()
+
+
+------------------------------
+<inbound>
+    <base />
+
+    <!-- Step 1: Extract Bearer token from Authorization header -->
+    <set-variable name="access_token" value="@(context.Request.Headers.GetValueOrDefault("Authorization", "").StartsWith("Bearer ") ? context.Request.Headers.GetValueOrDefault("Authorization").Substring(7) : string.Empty)" />
+
+    <!-- Optional: Check if token is missing or empty -->
+    <choose>
+        <when condition="@(string.IsNullOrEmpty((string)context.Variables["access_token"]))">
+            <return-response>
+                <set-status code="401" reason="Unauthorized" />
+                <set-body>{"error": "Missing or invalid Authorization token."}</set-body>
+            </return-response>
+        </when>
+    </choose>
+
+    <!-- Step 2: Rewrite URI to pass token to backend as query param (if backend still expects it) -->
+    <!-- If your backend supports Authorization header, you can skip this -->
+    <rewrite-uri template="/data?access_token={access_token}" />
+
+    <!-- Step 3: Optional pagination validation -->
+    <validate-parameters>
+        <!-- Validate 'page' -->
+        <parameter name="page" required="true">
+            <validation rule="int" min-value="1" />
+        </parameter>
+        
+        <!-- Validate 'pageSize' -->
+        <parameter name="pageSize" required="false">
+            <validation rule="int" min-value="1" max-value="100" />
+        </parameter>
+    </validate-parameters>
+</inbound>
