@@ -148,3 +148,40 @@ users_df.head()
         </parameter>
     </validate-parameters>
 </inbound>
+
+-----------------
+<inbound>
+    <base />
+
+    <!-- Extract Bearer token from Authorization header -->
+    <set-variable name="authHeader" value="@(context.Request.Headers.GetValueOrDefault("Authorization", string.Empty))" />
+    
+    <!-- Extract token by removing 'Bearer ' prefix -->
+    <set-variable name="access_token" value="@{
+        string header = context.Variables.GetValueOrDefault("authHeader", "") as string;
+        return header != null && header.StartsWith("Bearer ") ? header.Substring(7) : string.Empty;
+    }" />
+
+    <!-- Reject request if token is missing -->
+    <choose>
+        <when condition="@((string)context.Variables["access_token"] == string.Empty)">
+            <return-response>
+                <set-status code="401" reason="Unauthorized" />
+                <set-body>{"error": "Missing or invalid Authorization token."}</set-body>
+            </return-response>
+        </when>
+    </choose>
+
+    <!-- Rewrite URI to include token (if backend still expects query param) -->
+    <rewrite-uri template="/data?access_token={access_token}" />
+
+    <!-- Validate pagination parameters -->
+    <validate-parameters>
+        <parameter name="page" required="true">
+            <validation rule="int" min-value="1" />
+        </parameter>
+        <parameter name="pageSize" required="false">
+            <validation rule="int" min-value="1" max-value="100" />
+        </parameter>
+    </validate-parameters>
+</inbound>
