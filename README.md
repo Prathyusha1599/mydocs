@@ -185,3 +185,103 @@ users_df.head()
         </parameter>
     </validate-parameters>
 </inbound>
+----------------------------------------
+
+Microsoft Fabric Naming Standards and Guidelines
+1. Purpose
+
+This document defines the standard naming conventions for all Fabric artifacts to ensure consistency, clarity, and maintainability across projects.
+
+The goal is to make it easy for any team member—present or future—to quickly identify the source, purpose, and stage of any Fabric object.
+
+2. General Naming Rules
+Rule	Description	Example
+Use lowercase	Use lowercase letters; avoid camelCase or PascalCase.	✅ pl_m3_stg_ingest_finance
+Use underscores	Use _ to separate logical sections.	✅ lh_sales_bronze
+Avoid spaces/special characters	No spaces or symbols except _.	❌ Sales-Pipeline ✅ sales_pipeline
+Use consistent prefixes	Prefix each artifact by its type.	✅ pl_salesforce_bronze_ingest
+Keep names descriptive but concise	Enough info to identify purpose quickly.	✅ ds_sales_gold
+Optional versioning	Add _v1, _v2 if multiple versions exist.	✅ pl_anaplan_transform_v2
+3. Prefix Standards by Artifact Type
+Artifact Type	Prefix	Example	Description
+Pipeline	pl_	pl_m3_silver_transform_finance	ETL or orchestration pipeline
+Dataflow (Gen2)	df_	df_salesforce_staging	Reusable Power Query transformations
+Lakehouse	lh_	lh_hr_bronze	Fabric lakehouse for specific domain
+Warehouse	wh_	wh_finance_reporting	Fabric SQL warehouse
+Dataset	ds_	ds_marketing_gold	Power BI dataset (semantic model)
+Notebook	nb_	nb_data_cleaning_anaplan	Fabric notebook for transformation or ML
+Data Pipeline Parameters	prm_	prm_anaplan_monthly_run	Parameter files or datasets used in pipelines
+Dataflow Storage Table	tb_	tb_sales_transactions	Physical table in lakehouse or warehouse
+Report / Dashboard	rpt_	rpt_finance_summary	Power BI report
+Workspace	ws_	ws_enterprise_data_platform	Fabric workspace name
+Lakehouse Folder / Zone	stg_, bronze_, silver_, gold_	lh_finance_bronze	Logical data zone naming
+4. Naming Convention Pattern
+
+Format:
+
+<Prefix>_<SourceSystem>_<TargetZone>_<Action/Purpose>_<BusinessDomain>
+
+
+Example:
+
+pl_salesforce_silver_transform_sales
+
+Segment	Meaning
+pl	Pipeline artifact
+salesforce	Source system
+silver	Data zone
+transform	Pipeline type or action
+sales	Business domain
+5. Suggested Naming Examples by Source System
+Source System	Example Artifacts
+Infor M3	pl_m3_stg_ingest_finance, lh_m3_silver
+Anaplan	pl_anaplan_bronze_transform_budget, ds_anaplan_gold
+Monday.com	pl_monday_stg_ingest_projects, rpt_monday_project_status
+Limble	pl_limble_silver_load_assets, lh_limble_bronze
+Fluence	pl_fluence_gold_transform_financials
+Salesforce	pl_salesforce_bronze_ingest_crm, ds_salesforce_gold_sales
+6. Folder / Zone Structure Standards
+Zone	Purpose	Example Folder
+staging / raw	Initial ingestion, minimal transformation	/lh_m3_stg/
+bronze	Cleaned and standardized data	/lh_anaplan_bronze/
+silver	Joined and business-ready tables	/lh_salesforce_silver/
+gold	Final analytics layer for reporting	/lh_finance_gold/
+7. Example End-to-End Flow
+Layer	Artifact	Example Name
+Ingestion	Pipeline	pl_m3_stg_ingest_finance
+Raw Storage	Lakehouse	lh_m3_stg
+Transformation	Notebook	nb_m3_silver_transform_finance
+Curated Output	Dataset	ds_finance_gold
+Visualization	Report	rpt_finance_summary
+8. Future-Proofing Guidelines
+
+Reserve unique codes for new source systems (e.g., sf for Salesforce, an for Anaplan).
+
+Maintain a “Naming Registry” – a shared Excel/SharePoint sheet listing all Fabric artifact names.
+
+Apply automated validation during deployment to enforce naming rules.
+
+Avoid hardcoding names in scripts; use parameters or configuration files.
+
+Keep this document updated as new artifacts or systems are added.
+
+9. Summary of Common Prefixes
+Prefix	Artifact Type
+pl_	Pipeline
+df_	Dataflow
+lh_	Lakehouse
+wh_	Warehouse
+ds_	Dataset
+nb_	Notebook
+prm_	Parameter
+tb_	Table
+rpt_	Report
+ws_	Workspace
+10. Example Naming Across Systems
+Source	Artifact	Example Name
+Infor M3	Pipeline	pl_m3_bronze_ingest_hr
+Anaplan	Notebook	nb_anaplan_silver_transform_budget
+Salesforce	Dataset	ds_salesforce_gold_sales
+Monday.com	Report	rpt_monday_project_tracker
+Limble	Lakehouse	lh_limble_bronze
+Fluence	Warehouse	wh_fluence_reporting
