@@ -314,3 +314,64 @@ Fluence	Warehouse	wh_fluence_reporting
     <set-variable name="offset" value="@((int.Parse(context.Variables["page"]) - 1) * int.Parse(context.Variables["pageSize"]))" />
     <rewrite-uri template="/your-backend-path?offset={offset}&limit={pageSize}" />
 </inbound>
+
+---------
+<inbound>
+  <base />
+
+  <!-- === Bearer token check (presence + scheme) === -->
+  <!-- validate-header ensures header exists and is non-empty -->
+  <validate-header name="Authorization"
+                   failed-check-httpcode="401"
+                   failed-check-error-message="Authorization header is missing."
+                   ignore-case="true" />
+
+  <!-- Ensure it is actually a Bearer token -->
+  <choose>
+    <when condition="@(context.Request.Headers.GetValueOrDefault("Authorization", string.Empty).Trim().StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))">
+      <!-- If you need real JWT validation, replace this block with <validate-jwt> -->
+    </when>
+    <otherwise>
+      <return-response>
+        <set-status code="401" reason="Unauthorized" />
+        <set-header name="WWW-Authenticate" exists-action="override">
+          <value>Bearer realm="https://abc-fabric.azure-api.net"</value>
+        </set-header>
+        <set-body>Missing or invalid Bearer token.</set-body>
+      </return-response>
+    </otherwise>
+  </choose>
+
+  <!-- === Pagination (robust parsing + sane bounds) === -->
+  <!-- page -->
+  <set-variable name="page" value="@{
+      var raw = context.Request.Url.Query.GetValueOrDefault("page", "1");
+      int p;
+      if (!int.TryParse(raw, out p) || p < 1) p = 1;
+      return p;
+  }" />
+
+  <!-- pageSize with min/max guardrails -->
+  <set-variable name="pageSize" value="@{
+      var raw = context.Request.Url.Query.GetValueOrDefault("pageSize", "10");
+      int s;
+      if (!int.TryParse(raw, out s) || s < 1) s = 10;
+      // cap to prevent oversized pages (tune as you like)
+      if (s > 100) s = 100;
+      return s;
+  }" />
+
+  <!-- offset = (page-1) * pageSize -->
+  <set-variable name="offset" value="@{
+      var p = (int)context.Variables["page"];
+      var s = (int)context.Variables["pageSize"];
+      // checked arithmetic to avoid overflow (paranoid, but safe)
+      try { return checked((p - 1) * s); } catch { return 0; }
+  }" />
+
+  <!-- === Rewrite to backend with calculated query params === -->
+  <!-- Use inline expressions in the template to avoid unresolved {placeholders} -->
+  <rewrite-uri template="/workflows/xyz/triggers/zzz/paths/invoke?offset=@(context.Variables["offset"])&limit=@(context.Variables["pageSize"])"
+               copy-unmatched-params="true" />
+</inbound>
+
