@@ -447,3 +447,64 @@ Fluence	Warehouse	wh_fluence_reporting
   </set-query-parameter>
 </inbound>
 
+----------------------
+
+<inbound>
+  <base />
+
+  <!-- Authorization header present -->
+  <validate-header name="Authorization"
+                   failed-check-httpcode="401"
+                   failed-check-error-message="Authorization header is missing." />
+
+  <!-- Must be a Bearer token -->
+  <choose>
+    <when condition='@(context.Request.Headers.GetValueOrDefault("Authorization", string.Empty)
+                        .Trim()
+                        .StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))'>
+      <!-- proceed -->
+    </when>
+    <otherwise>
+      <return-response>
+        <set-status code="401" reason="Unauthorized" />
+        <set-header name="WWW-Authenticate" exists-action="override">
+          <value>Bearer realm="https://abc-fabric.azure-api.net"</value>
+        </set-header>
+        <set-body>Missing or invalid Bearer token.</set-body>
+      </return-response>
+    </otherwise>
+  </choose>
+
+  <!-- Pagination: robust parsing -->
+  <set-variable name="page" value='@{
+      var raw = context.Request.Url.Query.GetValueOrDefault("page", "1");
+      int p;
+      if (!int.TryParse(raw, out p) || p < 1) p = 1;
+      return p;
+  }' />
+
+  <set-variable name="pageSize" value='@{
+      var raw = context.Request.Url.Query.GetValueOrDefault("pageSize", "10");
+      int s;
+      if (!int.TryParse(raw, out s) || s < 1) s = 10;
+      if (s > 100) s = 100;  // cap
+      return s;
+  }' />
+
+  <set-variable name="offset" value='@{
+      var p = (int)context.Variables.GetValueOrDefault("page", 1);
+      var s = (int)context.Variables.GetValueOrDefault("pageSize", 10);
+      try { return checked((p - 1) * s); } catch { return 0; }
+  }' />
+
+  <!-- Rewrite + set query params separately to avoid inline @() in template -->
+  <rewrite-uri template="/workflows/xyz/triggers/zzz/paths/invoke" copy-unmatched-params="true" />
+  <set-query-parameter name="offset" exists-action="override">
+    <value>@(context.Variables.GetValueOrDefault("offset", 0))</value>
+  </set-query-parameter>
+  <set-query-parameter name="limit" exists-action="override">
+    <value>@(context.Variables.GetValueOrDefault("pageSize", 10))</value>
+  </set-query-parameter>
+</inbound>
+
+
