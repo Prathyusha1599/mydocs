@@ -375,3 +375,13 @@ Fluence	Warehouse	wh_fluence_reporting
                copy-unmatched-params="true" />
 </inbound>
 
+----
+<!-- Rewrite + set query params separately to avoid inline @() in template -->
+  <rewrite-uri template="/workflows/xyz/triggers/zzz/paths/invoke" copy-unmatched-params="true" />
+  <set-query-parameter name="offset" exists-action="override">
+    <value>@(context.Variables.GetValueOrDefault("offset", 0))</value>
+  </set-query-parameter>
+  <set-query-parameter name="limit" exists-action="override">
+    <value>@(context.Variables.GetValueOrDefault("pageSize", 10))</value>
+  </set-query-parameter>
+</inbound>
