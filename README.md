@@ -285,3 +285,32 @@ Salesforce	Dataset	ds_salesforce_gold_sales
 Monday.com	Report	rpt_monday_project_tracker
 Limble	Lakehouse	lh_limble_bronze
 Fluence	Warehouse	wh_fluence_reporting
+
+-----------------------
+10/15
+
+<inbound>
+    <base />
+
+    <!-- Token validation -->
+    <validate-header name="Authorization" failed-check-httpcode="401" failed-check-error-message="Authorization header is missing or invalid." />
+    <choose>
+        <when condition="@(context.Request.Headers.GetValueOrDefault("Authorization", "").StartsWith("Bearer "))">
+        </when>
+        <otherwise>
+            <return-response>
+                <set-status code="401" reason="Unauthorized" />
+                <set-header name="WWW-Authenticate" exists-action="override">
+                    <value>Bearer realm="my-api"</value>
+                </set-header>
+                <set-body>Missing or invalid Bearer token.</set-body>
+            </return-response>
+        </otherwise>
+    </choose>
+
+    <!-- Pagination logic -->
+    <set-variable name="page" value="@(context.Request.Url.Query.GetValueOrDefault("page", "1"))" />
+    <set-variable name="pageSize" value="@(context.Request.Url.Query.GetValueOrDefault("pageSize", "10"))" />
+    <set-variable name="offset" value="@((int.Parse(context.Variables["page"]) - 1) * int.Parse(context.Variables["pageSize"]))" />
+    <rewrite-uri template="/your-backend-path?offset={offset}&limit={pageSize}" />
+</inbound>
