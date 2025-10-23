@@ -507,4 +507,36 @@ Fluence	Warehouse	wh_fluence_reporting
   </set-query-parameter>
 </inbound>
 
+--------------------------
 
+Metadata-Driven Data Ingestion Framework
+Our data ingestion framework is designed to enable automated, metadata-driven ingestion from multiple heterogeneous data sources into our centralized data platform, ensuring consistency, scalability, and comprehensive monitoring of each pipeline execution.
+1. Data Sources
+We ingest data from a wide range of sources including databases, APIs, flat files (CSV, JSON, Parquet), cloud storage, and third-party applications. These sources vary in structure and format, so our framework is built to handle both structured and semi-structured data efficiently.
+2. Metadata-Driven Framework
+To eliminate manual intervention and enhance scalability, we have built a metadata-driven ingestion framework. This approach allows us to define ingestion logic, mappings, and configurations dynamically through metadata rather than hard-coded parameters.
+The metadata repository contains details such as:
+Source system name and type
+File paths or database connection details
+Target table information
+Transformation or mapping rules
+Schedule and load frequency
+This ensures flexibility—any new data source can be onboarded by simply updating the metadata, without modifying the underlying pipeline logic.
+3. Metadata Initialization
+Before ingestion begins, we create the metadata entries for each dataset that needs to be ingested. This metadata acts as the foundation for the entire ingestion process, defining what data to load and how it should be processed.
+4. Pipeline Execution and Parameterization
+When the ingestion pipeline is triggered, it first scans the metadata repository to identify the datasets that need to be processed.
+Once identified, the pipeline extracts the necessary configuration parameters—such as source and target details—and stores them into variables. These variables are used to parameterize the data flow, making the ingestion process dynamic and reusable across multiple data sources.
+5. Data Ingestion (Copy Activity)
+The core of the ingestion process is the Copy Activity, which performs the actual data movement from the source system into the target platform (data lake or warehouse). This component supports both full and incremental loads, ensuring optimal performance and reliability.
+6. Logging and Monitoring
+After the ingestion is complete, a notebook activity is executed to capture detailed pipeline execution statistics.
+This includes:
+Pipeline start and end time
+Execution duration
+Number of records read and written
+Load status (success/failure)
+Any error messages encountered
+These metrics are logged back into the metadata store, enabling end-to-end monitoring, auditing, and performance analysis of all ingestion pipelines.
+Outcome
+This end-to-end design delivers a fully automated and monitored ingestion process, minimizing manual configuration, reducing operational overhead, and improving data reliability. The framework provides visibility into pipeline health and performance, making it easier to maintain and scale ingestion across diverse data sources.
