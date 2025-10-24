@@ -1,3 +1,47 @@
+{
+  "triggers": {
+    "When_Http_Request_Is_Received": {
+      "type": "Request",
+      "kind": "Http",
+      "inputs": {
+        "method": "POST",
+        "schema": {
+          "type": "object",
+          "properties": {
+            "exampleProperty": {
+              "type": "string"
+            }
+          },
+          "required": ["exampleProperty"]
+        }
+      },
+      "runtimeConfiguration": {
+        "sharedAccessAuthorizationPolicy": {
+          "enabled": false
+        }
+      }
+    }
+  },
+  "actions": {
+    "Response": {
+      "type": "Response",
+      "kind": "Http",
+      "inputs": {
+        "statusCode": 200,
+        "body": {
+          "message": "Request received successfully"
+        }
+      },
+      "runAfter": {}
+    }
+  },
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "outputs": {}
+}
+------------------------
+
+
 Purview – UKG Data Governance Summary
 1. Introduction
 Microsoft Purview is being implemented to provide data governance for UKG employee data stored in Fabric Lakehouse. The goal is to ensure sensitive information (e.g., salaries, employee IDs, employment dates) is protected, while still allowing business users to analyze and report on the data.
