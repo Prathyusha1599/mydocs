@@ -62,7 +62,40 @@
 </inbound>
 
 ------------------------
+<inbound>
+  <base />
 
+  <!-- 1️⃣  Validate the caller’s OAuth 2.0 access token -->
+  <validate-jwt header-name="Authorization" require-scheme="Bearer"
+                failed-validation-httpcode="401"
+                failed-validation-error-message="Invalid or missing access token.">
+    <openid-config url="https://login.microsoftonline.com/{TENANT_ID}/v2.0/.well-known/openid-configuration" />
+    <audiences>
+      <audience>api://{CLIENT_APP_ID_URI}</audience>
+    </audiences>
+    <issuers>
+      <issuer>https://login.microsoftonline.com/{TENANT_ID}/v2.0</issuer>
+    </issuers>
+  </validate-jwt>
+
+  <!-- 2️⃣  Construct backend call with SAS authentication -->
+  <!--    Option A – hardcode SAS directly (not recommended) -->
+  <!-- <set-backend-service base-url="https://{LOGICAPP_URL}?{LOGICAPP_SAS}" /> -->
+
+  <!--    Option B – store SAS token in a Named Value (recommended) -->
+  <!-- Define a Named Value called "logicapp-sas" in APIM, mark it as secret -->
+  <set-variable name="logicAppSas" value="{{logicapp-sas}}" />
+  <set-backend-service base-url="@($"https://{LOGICAPP_URL}?{context.Variables["logicAppSas"]}")" />
+
+  <!-- 3️⃣  (Optional) add headers for tracing -->
+  <set-header name="x-forwarded-for" exists-action="override">
+    <value>@(context.Request.IpAddress)</value>
+  </set-header>
+  <set-header name="x-caller-objectid" exists-action="override">
+    <value>@((string)context.Principal?.Claims?.GetValueOrDefault("oid"))</value>
+  </set-header>
+</inbound>
+-----------
 
 Purview – UKG Data Governance Summary
 1. Introduction
