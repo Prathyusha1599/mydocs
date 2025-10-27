@@ -1,41 +1,63 @@
 <inbound>
   <base />
-  <!-- ... validate-jwt as above ... -->
-  <!-- Validate the client’s token -->
-  <validate-jwt header-name="Authorization" require-scheme="Bearer" failed-validation-httpcode="401" failed-validation-error-message="Invalid or missing access token.">
+
+  <!-- 1) Validate the client token hitting APIM -->
+  <validate-jwt header-name="Authorization" require-scheme="Bearer"
+                failed-validation-httpcode="401"
+                failed-validation-error-message="Invalid or missing access token.">
     <openid-config url="https://login.microsoftonline.com/{TENANT_ID}/v2.0/.well-known/openid-configuration" />
-    <!-- Accept the client app’s audience(s) -->
     <audiences>
-      <audience>api://{client-facing-app-id-or-uri}</audience>
+      <audience>api://{CLIENT_FACING_APP_ID_URI}</audience>
     </audiences>
     <issuers>
       <issuer>https://login.microsoftonline.com/{TENANT_ID}/v2.0</issuer>
     </issuers>
   </validate-jwt>
 
-  <!-- Get backend token via client_credentials -->
-  <send-request mode="new" response-variable-name="tokenResponse" timeout="20" ignore-error="false">
-    <set-url>https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token</set-url>
-    <set-method>POST</set-method>
-    <set-header name="Content-Type" exists-action="override">
-      <value>application/x-www-form-urlencoded</value>
-    </set-header>
-    <set-body>
-grant_type=client_credentials&amp;client_id={BACKEND_CLIENT_ID}&amp;client_secret={BACKEND_CLIENT_SECRET}&amp;scope=api://{backend-app-id-or-uri}/.default
-    </set-body>
-  </send-request>
+  <!-- 2) Try to reuse a cached backend token -->
+  <cache-lookup-value key="logicappAccessToken" variable-name="logicappToken" />
 
-  <!-- Extract access_token -->
-  <set-variable name="logicappToken" value="@{
-      var body = ((IResponse)context.Variables["tokenResponse"]).Body.As<JObject>();
-      return (string)body["access_token"];
-  }" />
+  <!-- 3) If not cached, get a fresh backend token (client_credentials) -->
+  <choose>
+    <when condition='@(!context.Variables.ContainsKey(&quot;logicappToken&quot;))'>
+      <send-request mode="new" response-variable-name="tokenResponse" timeout="20" ignore-error="false">
+        <set-url>https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token</set-url>
+        <set-method>POST</set-method>
+        <set-header name="Content-Type" exists-action="override">
+          <value>application/x-www-form-urlencoded</value>
+        </set-header>
+        <!-- Build the x-www-form-urlencoded body safely (escape secret & scope) -->
+        <set-body>@{
+          var clientId = "{{backend-client-id}}";              // Named Value (plain)
+          var clientSecret = "{{backend-client-secret}}";      // Named Value (secret)
+          var scope = "api://{BACKEND_APP_ID_URI}/.default";
+          return "grant_type=client_credentials"
+                 + "&client_id=" + clientId
+                 + "&client_secret=" + Uri.EscapeDataString(clientSecret)
+                 + "&scope=" + Uri.EscapeDataString(scope);
+        }</set-body>
+      </send-request>
 
-  <!-- Apply it to the backend call -->
+      <!-- Extract access_token from the token endpoint JSON -->
+      <set-variable name="logicappToken" value='@{
+        var tr = (IResponse)context.Variables[&quot;tokenResponse&quot;];
+        var jobj = tr.Body.As<JObject>();
+        return (string)jobj[&quot;access_token&quot;];
+      }' />
+
+      <!-- Cache for ~55 minutes (3300s) -->
+      <cache-store-value key="logicappAccessToken"
+                         value='@((string)context.Variables[&quot;logicappToken&quot;])'
+                         duration="3300" />
+    </when>
+  </choose>
+
+  <!-- 4) Set backend Authorization header with the SEPARATE token -->
   <set-header name="Authorization" exists-action="override">
     <value>@("Bearer " + (string)context.Variables["logicappToken"])</value>
   </set-header>
 
+  <!-- 5) Route to Logic App -->
   <set-backend-service base-url="https://{logicapp-host}/workflows/{name}/triggers/{trigger}/invoke" />
 </inbound>
 
