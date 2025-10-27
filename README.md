@@ -1,44 +1,44 @@
-{
-  "triggers": {
-    "When_Http_Request_Is_Received": {
-      "type": "Request",
-      "kind": "Http",
-      "inputs": {
-        "method": "POST",
-        "schema": {
-          "type": "object",
-          "properties": {
-            "exampleProperty": {
-              "type": "string"
-            }
-          },
-          "required": ["exampleProperty"]
-        }
-      },
-      "runtimeConfiguration": {
-        "sharedAccessAuthorizationPolicy": {
-          "enabled": false
-        }
-      }
-    }
-  },
-  "actions": {
-    "Response": {
-      "type": "Response",
-      "kind": "Http",
-      "inputs": {
-        "statusCode": 200,
-        "body": {
-          "message": "Request received successfully"
-        }
-      },
-      "runAfter": {}
-    }
-  },
-  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
-  "contentVersion": "1.0.0.0",
-  "outputs": {}
-}
+<inbound>
+  <base />
+  <!-- ... validate-jwt as above ... -->
+  <!-- Validate the client’s token -->
+  <validate-jwt header-name="Authorization" require-scheme="Bearer" failed-validation-httpcode="401" failed-validation-error-message="Invalid or missing access token.">
+    <openid-config url="https://login.microsoftonline.com/{TENANT_ID}/v2.0/.well-known/openid-configuration" />
+    <!-- Accept the client app’s audience(s) -->
+    <audiences>
+      <audience>api://{client-facing-app-id-or-uri}</audience>
+    </audiences>
+    <issuers>
+      <issuer>https://login.microsoftonline.com/{TENANT_ID}/v2.0</issuer>
+    </issuers>
+  </validate-jwt>
+
+  <!-- Get backend token via client_credentials -->
+  <send-request mode="new" response-variable-name="tokenResponse" timeout="20" ignore-error="false">
+    <set-url>https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token</set-url>
+    <set-method>POST</set-method>
+    <set-header name="Content-Type" exists-action="override">
+      <value>application/x-www-form-urlencoded</value>
+    </set-header>
+    <set-body>
+grant_type=client_credentials&amp;client_id={BACKEND_CLIENT_ID}&amp;client_secret={BACKEND_CLIENT_SECRET}&amp;scope=api://{backend-app-id-or-uri}/.default
+    </set-body>
+  </send-request>
+
+  <!-- Extract access_token -->
+  <set-variable name="logicappToken" value="@{
+      var body = ((IResponse)context.Variables["tokenResponse"]).Body.As<JObject>();
+      return (string)body["access_token"];
+  }" />
+
+  <!-- Apply it to the backend call -->
+  <set-header name="Authorization" exists-action="override">
+    <value>@("Bearer " + (string)context.Variables["logicappToken"])</value>
+  </set-header>
+
+  <set-backend-service base-url="https://{logicapp-host}/workflows/{name}/triggers/{trigger}/invoke" />
+</inbound>
+
 ------------------------
 
 
