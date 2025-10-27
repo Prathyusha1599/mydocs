@@ -1,3 +1,50 @@
+<policies>
+  <inbound>
+    <base />
+
+    <!-- Step 1: Validate client's token for APIM -->
+    <validate-jwt header-name="Authorization"
+                  failed-validation-httpcode="401"
+                  failed-validation-error-message="Unauthorized">
+      <openid-config url="https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration" />
+      <required-claim name="aud" match="any">
+        <value>api://apim-client</value>
+      </required-claim>
+    </validate-jwt>
+
+    <!-- Step 2: Acquire token for Logic App via client credentials -->
+    <send-request mode="new" response-variable-name="logicAppTokenResponse" timeout="20" ignore-error="false">
+      <set-url>https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token</set-url>
+      <set-method>POST</set-method>
+      <set-header name="Content-Type" exists-action="override">
+        <value>application/x-www-form-urlencoded</value>
+      </set-header>
+      <set-body>@{
+          return "grant_type=client_credentials" &
+                 "&client_id=<la-user-client-id>" &
+                 "&client_secret=<la-user-client-secret>" &
+                 "&scope=api://la-user/.default";
+      }</set-body>
+    </send-request>
+
+    <!-- Step 3: Parse token from response -->
+    <set-variable name="laAccessToken" value="@((new JObject(context.Variables["logicAppTokenResponse"].Body.As<JObject>()))["access_token"].ToString())" />
+
+    <!-- Step 4: Set Authorization header for Logic App call -->
+    <set-header name="Authorization" exists-action="override">
+      <value>@{concat('Bearer ', context.Variables["laAccessToken"])}</value>
+    </set-header>
+
+    <!-- Step 5: Route to Logic App -->
+    <set-backend-service base-url="https://<your-logicapp-name>.azurewebsites.net" />
+
+  </inbound>
+
+  <backend><base /></backend>
+  <outbound><base /></outbound>
+</policies>
+---------------------------------
+
 <inbound>
   <base />
 
