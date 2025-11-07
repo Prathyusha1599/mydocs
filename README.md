@@ -686,3 +686,40 @@ Any error messages encountered
 These metrics are logged back into the metadata store, enabling end-to-end monitoring, auditing, and performance analysis of all ingestion pipelines.
 Outcome
 This end-to-end design delivers a fully automated and monitored ingestion process, minimizing manual configuration, reducing operational overhead, and improving data reliability. The framework provides visibility into pipeline health and performance, making it easier to maintain and scale ingestion across diverse data sources.
+
+-------------------------
+
+**Summary of Work Completed – HR Data Governance (Microsoft Purview Prototype)**
+
+* **Data Discovery & Scanning**
+
+  * Performed an initial scan across the Fabric environment to identify and register all updated datasets.
+  * Added two primary Lakehouse assets under the HR domain:
+
+    1. **Bronze Employee Data** → Data Product: *Teknor Apex Employee Data*
+    2. **Bronze Employee Hours Hourly** → Data Product: *Hourly Workforce Metrics*
+
+* **Governance Domain Setup**
+
+  * Created a new **HR governance domain** in Microsoft Purview.
+  * Configured associated **data products**, **contacts**, **owners**, and **audience** roles for ownership visibility and accountability.
+  * Added relevant **business glossary terms** to align HR datasets with defined enterprise definitions.
+
+* **Data Quality Configuration**
+
+  * Defined and implemented **data quality rules** for key columns, including checks for:
+
+    * Freshness
+    * Data type match
+    * Unique values
+  * Executed data quality scans and generated a **baseline data quality score** for both HR datasets.
+  * Configured an **automated monthly scan schedule** to continuously monitor quality over time.
+
+* **Standardization & Alignment**
+
+  * Ensured consistent metadata tagging, glossary linkage, and ownership structure across both HR data products.
+  * Verified lineage and dataset relationships between Employee Data and Employee Hours tables for traceability.
+
+**Outcome:**
+Delivered a complete end-to-end HR data governance prototype in Purview, covering data registration, glossary alignment, ownership setup, data quality rule creation, automated scanning, and score monitoring for key HR datasets.
+
