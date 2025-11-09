@@ -723,3 +723,25 @@ This end-to-end design delivers a fully automated and monitored ingestion proces
 **Outcome:**
 Delivered a complete end-to-end HR data governance prototype in Purview, covering data registration, glossary alignment, ownership setup, data quality rule creation, automated scanning, and score monitoring for key HR datasets.
 
+-----------------
+<!-- Pagination parameters from client -->
+        <set-variable name="pageNumber" value="@(int.Parse(context.Request.MatchedParameters.GetValueOrDefault("pageNumber","1")))" />
+        <set-variable name="pageSize" value="@(int.Parse(context.Request.MatchedParameters.GetValueOrDefault("pageSize","50")))" />
+
+        <!-- Enforce maximum page size (e.g., 500) -->
+        <choose>
+            <when condition="@((int)context.Variables["pageSize"] > 500)">
+                <return-response>
+                    <set-status code="400" reason="Bad Request" />
+                    <set-body>{"error": "pageSize exceeds maximum limit of 500"}</set-body>
+                </return-response>
+            </when>
+        </choose>
+
+        <!-- Forward validated pagination params to Logic App -->
+        <set-query-parameter name="pageNumber" exists-action="override">
+            <value>@(context.Variables["pageNumber"].ToString())</value>
+        </set-query-parameter>
+        <set-query-parameter name="pageSize" exists-action="override">
+            <value>@(context.Variables["pageSize"].ToString())</value>
+        </set-query-parameter>
