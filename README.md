@@ -809,3 +809,104 @@ Delivered a complete end-to-end HR data governance prototype in Purview, coverin
         return body.ToString();
     }</set-body>
   </outbound>
+
+  ------------------
+
+  <!-- Page number handling -->
+    <set-variable name="pageNumber" value="@{
+        int page = 1;
+        if (context.Request.MatchedParameters.ContainsKey("pageNumber"))
+        {
+            int.TryParse(context.Request.MatchedParameters["pageNumber"], out page);
+            if (page < 1)
+            {
+                page = 1;
+            }
+        }
+        return page;
+    }" />
+
+    <!-- Page size handling -->
+    <set-variable name="pageSize" value="@{
+        int size = 100;
+        if (context.Request.MatchedParameters.ContainsKey("pageSize"))
+        {
+            int.TryParse(context.Request.MatchedParameters["pageSize"], out size);
+        }
+        if (size > 2500)
+        {
+            size = 2500;
+        }
+        if (size < 1)
+        {
+            size = 1;
+        }
+        return size;
+    }" />
+
+    <!-- Convert numeric vars to strings for safe use -->
+    <set-variable name="pageNumberString" value="@((int)context.Variables["pageNumber"] + """")" />
+    <set-variable name="pageSizeString" value="@((int)context.Variables["pageSize"] + """")" />
+
+    <!-- nextPageToken (optional) -->
+    <set-variable name="nextPageToken" value="@{
+        string token = null;
+        if (context.Request.MatchedParameters.ContainsKey("nextPageToken"))
+        {
+            token = (string)context.Request.MatchedParameters["nextPageToken"];
+        }
+        return token;
+    }" />
+
+    <!-- Add safe string values to query -->
+    <set-query-parameter name="pageNumber" exists-action="override">
+      <value>@(context.Variables["pageNumberString"])</value>
+    </set-query-parameter>
+
+    <set-query-parameter name="pageSize" exists-action="override">
+      <value>@(context.Variables["pageSizeString"])</value>
+    </set-query-parameter>
+
+    <choose>
+      <when condition="@(!string.IsNullOrEmpty((string)context.Variables["nextPageToken"]))">
+        <set-query-parameter name="nextPageToken" exists-action="override">
+          <value>@(context.Variables["nextPageToken"])</value>
+        </set-query-parameter>
+      </when>
+    </choose>
+  </inbound>
+
+  <backend>
+    <forward-request />
+  </backend>
+
+  <outbound>
+    <base />
+
+    <!-- Add nextPageUrl if backend returns a continuation token -->
+    <set-body>@{
+        var body = context.Response.Body.As<JObject>(preserveContent: true);
+        if (body != null)
+        {
+            string token = null;
+
+            if (body.ContainsKey("nextPageToken"))
+            {
+                token = (string)body["nextPageToken"];
+            }
+            else if (body.ContainsKey("@odata.nextLink"))
+            {
+                token = (string)body["@odata.nextLink"];
+            }
+
+            if (!string.IsNullOrEmpty(token))
+            {
+                var nextUrl = $"{context.Request.OriginalUrl.Split('?')[0]}?nextPageToken={token}";
+                body["nextPageUrl"] = nextUrl;
+            }
+
+            return body.ToString();
+        }
+        return context.Response.Body.As<string>();
+    }</set-body>
+  </outbound>
