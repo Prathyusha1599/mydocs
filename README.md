@@ -745,3 +745,67 @@ Delivered a complete end-to-end HR data governance prototype in Purview, coverin
         <set-query-parameter name="pageSize" exists-action="override">
             <value>@(context.Variables["pageSize"].ToString())</value>
         </set-query-parameter>
+----------------------------
+
+<!-- Optional: support pageNumber/pageSize -->
+    <set-variable name="pageNumber" value="@{
+        var pn = 1;
+        if (context.Request.MatchedParameters.ContainsKey("pageNumber"))
+        {
+            int.TryParse(context.Request.MatchedParameters["pageNumber"], out pn);
+        }
+        return pn;
+    }" />
+
+    <set-variable name="pageSize" value="@{
+        var ps = 100;
+        if (context.Request.MatchedParameters.ContainsKey("pageSize"))
+        {
+            int.TryParse(context.Request.MatchedParameters["pageSize"], out ps);
+        }
+        return ps;
+    }" />
+
+    <!-- Enforce max page size of 2500 -->
+    <choose>
+      <when condition="@((int)context.Variables["pageSize"] > 2500)">
+        <set-variable name="pageSize" value="2500" />
+      </when>
+    </choose>
+
+    <!-- Pass pagination parameters to Logic App -->
+    <set-query-parameter name="pageNumber" exists-action="override">
+      <value>@(context.Variables["pageNumber"].ToString())</value>
+    </set-query-parameter>
+    <set-query-parameter name="pageSize" exists-action="override">
+      <value>@(context.Variables["pageSize"].ToString())</value>
+    </set-query-parameter>
+
+    <!-- Support nextPageToken -->
+    <choose>
+      <when condition="@(!string.IsNullOrEmpty(context.Request.MatchedParameters.GetValueOrDefault("nextPageToken", "")))">
+        <set-query-parameter name="nextPageToken" exists-action="override">
+          <value>@(context.Request.MatchedParameters["nextPageToken"])</value>
+        </set-query-parameter>
+      </when>
+    </choose>
+  </inbound>
+
+  <backend>
+    <forward-request />
+  </backend>
+
+  <outbound>
+    <base />
+    <!-- Process backend response and rewrite nextPageToken -->
+    <set-body>@{
+        var body = context.Response.Body.As<JObject>(preserveContent: true);
+        if (body != null && body.ContainsKey("nextPageToken"))
+        {
+            var token = (string)body["nextPageToken"];
+            var nextUrl = $"{context.Request.OriginalUrl}?nextPageToken={token}";
+            body["nextPageUrl"] = nextUrl;
+        }
+        return body.ToString();
+    }</set-body>
+  </outbound>
