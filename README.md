@@ -1,90 +1,3 @@
-<policies>
-  <inbound>
-    <base />
-
-    <!-- Step 1: Validate client's token for APIM -->
-    <validate-jwt header-name="Authorization"
-                  failed-validation-httpcode="401"
-                  failed-validation-error-message="Unauthorized">
-      <openid-config url="https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration" />
-      <required-claim name="aud" match="any">
-        <value>api://apim-client</value>
-      </required-claim>
-    </validate-jwt>
-
-    <!-- Step 2: Acquire token for Logic App via client credentials -->
-    <send-request mode="new" response-variable-name="logicAppTokenResponse" timeout="20" ignore-error="false">
-      <set-url>https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token</set-url>
-      <set-method>POST</set-method>
-      <set-header name="Content-Type" exists-action="override">
-        <value>application/x-www-form-urlencoded</value>
-      </set-header>
-      <set-body>@{
-          return "grant_type=client_credentials" &
-                 "&client_id=<la-user-client-id>" &
-                 "&client_secret=<la-user-client-secret>" &
-                 "&scope=api://la-user/.default";
-      }</set-body>
-    </send-request>
-
-    <!-- Step 3: Parse token from response -->
-    <set-variable name="laAccessToken" value="@((new JObject(context.Variables["logicAppTokenResponse"].Body.As<JObject>()))["access_token"].ToString())" />
-
-    <!-- Step 4: Set Authorization header for Logic App call -->
-    <set-header name="Authorization" exists-action="override">
-      <value>@{concat('Bearer ', context.Variables["laAccessToken"])}</value>
-    </set-header>
-
-    <!-- Step 5: Route to Logic App -->
-    <set-backend-service base-url="https://<your-logicapp-name>.azurewebsites.net" />
-
-  </inbound>
-
-  <backend><base /></backend>
-  <outbound><base /></outbound>
-</policies>
----------------------------------
-
-<inbound>
-  <base />
-
-  <!-- 1) Validate the client token hitting APIM -->
-  <validate-jwt header-name="Authorization" require-scheme="Bearer"
-                failed-validation-httpcode="401"
-                failed-validation-error-message="Invalid or missing access token.">
-    <openid-config url="https://login.microsoftonline.com/{TENANT_ID}/v2.0/.well-known/openid-configuration" />
-    <audiences>
-      <audience>api://{CLIENT_FACING_APP_ID_URI}</audience>
-    </audiences>
-    <issuers>
-      <issuer>https://login.microsoftonline.com/{TENANT_ID}/v2.0</issuer>
-    </issuers>
-  </validate-jwt>
-
-  <!-- 2) Try to reuse a cached backend token -->
-  <cache-lookup-value key="logicappAccessToken" variable-name="logicappToken" />
-
-  <!-- 3) If not cached, get a fresh backend token (client_credentials) -->
-  <choose>
-    <when condition='@(!context.Variables.ContainsKey(&quot;logicappToken&quot;))'>
-      <send-request mode="new" response-variable-name="tokenResponse" timeout="20" ignore-error="false">
-        <set-url>https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token</set-url>
-        <set-method>POST</set-method>
-        <set-header name="Content-Type" exists-action="override">
-          <value>application/x-www-form-urlencoded</value>
-        </set-header>
-        <!-- Build the x-www-form-urlencoded body safely (escape secret & scope) -->
-        <set-body>@{
-          var clientId = "{{backend-client-id}}";              // Named Value (plain)
-          var clientSecret = "{{backend-client-secret}}";      // Named Value (secret)
-          var scope = "api://{BACKEND_APP_ID_URI}/.default";
-          return "grant_type=client_credentials"
-                 + "&client_id=" + clientId
-                 + "&client_secret=" + Uri.EscapeDataString(clientSecret)
-                 + "&scope=" + Uri.EscapeDataString(scope);
-        }</set-body>
-      </send-request>
-
       <!-- Extract access_token from the token endpoint JSON -->
       <set-variable name="logicappToken" value='@{
         var tr = (IResponse)context.Variables[&quot;tokenResponse&quot;];
@@ -910,3 +823,38 @@ Delivered a complete end-to-end HR data governance prototype in Purview, coverin
         return context.Response.Body.As<string>();
     }</set-body>
   </outbound>
+
+  --------------------------
+  <!-- 2️⃣ Extract pagination parameters with defaults -->
+        <set-variable name="pageNumber" value="@((int?)context.Request.MatchedParameters["pageNumber"] ?? 1)" />
+        <set-variable name="pageSize" value="@((int?)context.Request.MatchedParameters["pageSize"] ?? 50)" />
+
+        <!-- Ensure they are strings for downstream query params -->
+        <set-variable name="pageNumberStr" value="@(((int)context.Variables["pageNumber"]).ToString())" />
+        <set-variable name="pageSizeStr" value="@(((int)context.Variables["pageSize"]).ToString())" />
+
+        <!-- 3️⃣ Append pagination query parameters -->
+        <set-query-parameter name="pageNumber" exists-action="override">
+            <value>@(context.Variables["pageNumberStr"])</value>
+        </set-query-parameter>
+        <set-query-parameter name="pageSize" exists-action="override">
+            <value>@(context.Variables["pageSizeStr"])</value>
+        </set-query-parameter>
+        ---------------------
+
+  <outbound>
+        <base />
+
+        <!-- Optionally wrap pagination metadata -->
+        <set-body>@{
+            var responseBody = context.Response.Body.As<JObject>();
+            var page = (int)context.Variables["pageNumber"];
+            var size = (int)context.Variables["pageSize"];
+            responseBody["pagination"] = new JObject
+            {
+                ["pageNumber"] = page,
+                ["pageSize"] = size
+            };
+            return responseBody.ToString();
+        }</set-body>
+    </outbound>
