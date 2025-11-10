@@ -858,3 +858,21 @@ Delivered a complete end-to-end HR data governance prototype in Purview, coverin
             return responseBody.ToString();
         }</set-body>
     </outbound>
+
+    --------
+    <!-- 2️⃣ Extract pagination parameters with defaults -->
+<set-variable name="pageNumber" value="@((int)(context.Request.MatchedParameters.ContainsKey("pageNumber") ? Convert.ToInt32(context.Request.MatchedParameters["pageNumber"]) : 1))" />
+<set-variable name="pageSize" value="@((int)(context.Request.MatchedParameters.ContainsKey("pageSize") ? Convert.ToInt32(context.Request.MatchedParameters["pageSize"]) : 50))" />
+
+<!-- Ensure they are strings for downstream query params -->
+<set-variable name="pageNumberStr" value="@(((int)context.Variables["pageNumber"]).ToString())" />
+<set-variable name="pageSizeStr" value="@(((int)context.Variables["pageSize"]).ToString())" />
+
+<!-- 3️⃣ Append pagination query parameters -->
+<set-query-parameter name="pageNumber" exists-action="override">
+    <value>@((string)context.Variables["pageNumberStr"])</value>
+</set-query-parameter>
+<set-query-parameter name="pageSize" exists-action="override">
+    <value>@((string)context.Variables["pageSizeStr"])</value>
+</set-query-parameter>
+
