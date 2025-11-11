@@ -875,4 +875,17 @@ Delivered a complete end-to-end HR data governance prototype in Purview, coverin
 <set-query-parameter name="pageSize" exists-action="override">
     <value>@((string)context.Variables["pageSizeStr"])</value>
 </set-query-parameter>
+---------------------------------------------------------------------
+<!-- Capture requested pageNumber or default to 1 -->
+        <set-variable name="pageNumber" value="@((string)context.Request.MatchedParameters["pageNumber"] ?? "1")" />
 
+        <!-- Forward the correct pageNumber -->
+        <set-query-parameter name="pageNumber" exists-action="override">
+            <value>@(context.Variables["pageNumber"])</value>
+        </set-query-parameter>
+
+        <!-- Optional: enforce max page size -->
+        <set-variable name="pageSize" value="@((string)context.Request.MatchedParameters["pageSize"] ?? "100")" />
+        <set-query-parameter name="pageSize" exists-action="override">
+            <value>@(context.Variables["pageSize"])</value>
+        </set-query-parameter>
