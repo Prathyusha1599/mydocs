@@ -1,4 +1,10 @@
-      <!-- Extract access_token from the token endpoint JSON -->
+from pyspark.sql import functions as F
+
+df = df.withColumn("tmp", F.split("col1", ",")) \
+       .withColumn("col1_1", F.col("tmp")[0]) \
+       .withColumn("col1_2", F.col("tmp")[1]) \
+       .withColumn("col1_3", F.col("tmp")[2]) \
+       .drop("tmp")<!-- Extract access_token from the token endpoint JSON -->
       <set-variable name="logicappToken" value='@{
         var tr = (IResponse)context.Variables[&quot;tokenResponse&quot;];
         var jobj = tr.Body.As<JObject>();
