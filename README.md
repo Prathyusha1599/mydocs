@@ -1,36 +1,78 @@
-from pyspark.sql import functions as F
+🧾 Story 1: REST API Creation and Business Validation
 
-df = df.withColumn("tmp", F.split("col1", ",")) \
-       .withColumn("col1_1", F.col("tmp")[0]) \
-       .withColumn("col1_2", F.col("tmp")[1]) \
-       .withColumn("col1_3", F.col("tmp")[2]) \
-       .drop("tmp")<!-- Extract access_token from the token endpoint JSON -->
-      <set-variable name="logicappToken" value='@{
-        var tr = (IResponse)context.Variables[&quot;tokenResponse&quot;];
-        var jobj = tr.Body.As<JObject>();
-        return (string)jobj[&quot;access_token&quot;];
-      }' />
+Story Title:
+Create REST API for Lakehouse SQL Queries and Validate with Business Users
 
-      <!-- Cache for ~55 minutes (3300s) -->
-      <cache-store-value key="logicappAccessToken"
-                         value='@((string)context.Variables[&quot;logicappToken&quot;])'
-                         duration="3300" />
-    </when>
-  </choose>
+Story Description:
+Develop REST APIs in Azure API Management (APIM) to execute individual SQL scripts from the Fabric Lakehouse through Logic Apps.
+Each SQL script will be exposed as a separate API endpoint, replicating the existing SSIS process in a modular way.
+The APIs will be secured using OAuth 2.0 (Azure AD) authentication and shared with business users for testing and validation.
 
-  <!-- 4) Set backend Authorization header with the SEPARATE token -->
-  <set-header name="Authorization" exists-action="override">
-    <value>@("Bearer " + (string)context.Variables["logicappToken"])</value>
-  </set-header>
+Business users will validate data retrieval through the API endpoints, and their feedback will be used to confirm functionality and plan subsequent enhancements.
 
-  <!-- 5) Route to Logic App -->
-  <set-backend-service base-url="https://{logicapp-host}/workflows/{name}/triggers/{trigger}/invoke" />
-</inbound>
+Acceptance Criteria:
 
-------------------------
-<inbound>
-  <base />
+ REST API endpoints are created in Azure APIM for each SQL script
 
+ OAuth 2.0 (Azure AD) authentication is configured and validated
+
+ Logic App triggers successfully via API request
+
+ API details (URL, credentials, scope) are shared with business users
+
+ Business validation confirms successful data retrieval
+
+ Feedback from Oplit/testing team is documented for improvement
+
+Comment – Work Completed (Past Tense)
+
+Created REST APIs in Azure API Management connected to Logic Apps for executing Lakehouse SQL queries.
+
+Configured OAuth 2.0 authentication using Azure AD and validated access tokens.
+
+Shared API endpoint, credentials, and scope details with business users for testing.
+
+Received confirmation from Oplit/testing team that API execution and data retrieval were successful.
+
+Captured feedback from business users for improving schema visibility and documentation.
+
+🧾 Story 2: Build and Enhance Swagger (OpenAPI) Documentation
+
+Story Title:
+Generate and Enhance Swagger (OpenAPI) Documentation for Lakehouse REST APIs
+
+Story Description:
+Generate the Swagger (OpenAPI) documentation for the Lakehouse API endpoints using Azure API Management.
+The Swagger file will include all endpoint definitions, authentication details, and schema references required by the business and architecture teams.
+Schema definitions for the API request and response objects will be added based on the underlying Lakehouse SQL table structure to ensure complete data visibility.
+
+The updated Swagger document will be shared with the business and architecture teams for review and then published in the Developer Portal for ongoing reference.
+
+Acceptance Criteria:
+
+ Swagger (OpenAPI) documentation is generated from Azure APIM
+
+ Endpoints, request, and response schemas are clearly defined
+
+ Schema definitions are derived from the Lakehouse SQL table structure
+
+ Updated YAML/JSON Swagger file is shared with business and architecture teams
+
+ Business review confirms documentation completeness
+
+ Final Swagger document is published to the Developer Portal
+
+Comment – Work Completed (Past Tense)
+
+Exported the initial OpenAPI (Swagger) definition from Azure API Management for the inform3 API.
+
+Incorporated feedback from the Oplit team regarding missing schema references.
+
+Extracted the SQL table structure (oplit) from the Lakehouse and defined all data fields in the Swagger schema section.
+
+Enhanced the YAML document with complete request/response schema definitions for improved clarity.
+
+Shared the updated Swagger document with the business and solution architecture teams for validation
   <!-- 1️⃣  Validate the caller’s OAuth 2.0 access token -->
   <validate-jwt header-name="Authorization" require-scheme="Bearer"
                 failed-validation-httpcode="401"
